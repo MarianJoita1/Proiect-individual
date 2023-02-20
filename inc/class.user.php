@@ -31,6 +31,23 @@ class User {
         }
     }
 
+    public function addMessage($text, $sender, $receiver) {
+        $sql = "INSERT INTO messages(text, sender, receiver, time) 
+                VALUES(:text, :sender, :receiver, NOW())";
+        try {
+            $sth = $this->db->prepare($sql);
+            $sth->bindParam(':text', $text, PDO::PARAM_STR);
+            $sth->bindParam(':sender', $sender, PDO::PARAM_INT);
+            $sth->bindParam(':receiver', $receiver, PDO::PARAM_INT);
+            $sth->execute();
+            
+            return $this->db->lastInsertId();
+        }
+        catch(PDOException $e) {
+            displayError(__METHOD__, $e->getMessage());
+        }
+    }
+
     //edit user
     public function editUser($userID, $type, $status, $email, $password) {
        $sql = "UPDATE car_users SET type = :type, status = :status, email = :email, password = :password WHERE id = :userID";
@@ -50,6 +67,38 @@ class User {
     //get users
     public function getUsers() {
         $sql  = "SELECT * FROM car_users";
+
+        try {
+            $sth = $this->db->prepare($sql);
+            $sth->execute();
+            return $sth->fetchAll();
+        }
+        catch(PDOException $e) {
+            displayError(__METHOD__, $e->getMessage());
+        }
+    }
+
+    public function getConversations($user) {
+        $sql  = "select id, LEFT(email, LOCATE('@', email) - 1) as email from car_users 
+        WHERE id in (
+            (SELECT DISTINCT (receiver) as conversations FROM messages WHERE sender = :user) 
+            UNION 
+            (SELECT DISTINCT (sender) as conversations FROM messages WHERE receiver = :user)
+            )";
+
+        try {
+            $sth = $this->db->prepare($sql);
+            $sth->bindParam(':user', $user, PDO::PARAM_INT);
+            $sth->execute();
+            return $sth->fetchAll();
+        }
+        catch(PDOException $e) {
+            displayError(__METHOD__, $e->getMessage());
+        }
+    }
+
+    public function getMessages() {
+        $sql  = "SELECT * FROM messages";
 
         try {
             $sth = $this->db->prepare($sql);
